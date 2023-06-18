@@ -1,0 +1,112 @@
+﻿@page "/problem/view/{Id:int}"
+@using DynTransit.Data;
+@using System.Text.Json;
+@inject NavigationManager NavMgr
+
+<PageTitle>View Problem</PageTitle>
+
+<h3><strong>[@problem.Id] @problem.Name</strong>
+    <a style="color:cornflowerblue" @onclick="GoEdit">[Edit]</a></h3>
+@if (problem.RelatedProblem != 0)
+{
+    string relatedUrl = "/problem/view/" + problem.RelatedProblem.ToString();
+    <h3><a style="color:cornflowerblue" href="@relatedUrl">Go To Related Problem</a></h3>
+}
+<br />
+
+<h4>Date</h4>
+<p>@problem.Date</p>
+<br />
+
+<h4>Tags</h4>
+@if (tags != null)
+{
+    @foreach (var s in tags)
+    {
+        string url = "/tags/" + s;
+        <a href="@url">@s</a><br/>
+    }
+}
+<br />
+
+<h4>Description</h4>
+@if (descUrl != null)
+{
+    @for (int i = 0; i < descUrl.Count; ++i)
+    {
+        <a href="@descUrl[i]">@descDisp[i]</a><br/>
+    }
+}
+<br/>
+
+<h4>Solution</h4>
+@if (solUrl != null)
+{
+    @for (int i = 0; i < solUrl.Count; ++i)
+    {
+        <a href="@solUrl[i]">@solDisp[i]</a><br/>
+    }
+}
+<br />
+
+<h4>Comments</h4>
+@if (comments != null)
+{
+    @foreach (var s in comments)
+    {
+        <p style="font-family:Consolas;background:#DDDDDD">@s</p>
+    }
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    Problem problem = new();
+    List<string>? descDisp = new(), descUrl = new(), solDisp = new(), solUrl = new(),
+        comments = new(), tags = new();
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+
+        using var db = new TransContext();
+        var list = db.Problems.Where(u => u.Id == Id).ToList();
+        if (list.Count == 0)
+        {
+            NavMgr.NavigateTo("/404");
+            return;
+        }
+        problem = list[0];
+
+        tags = problem.Tags.Split(';').ToList();
+        descUrl = JsonSerializer.Deserialize<List<string>>(problem.Descriptions);
+        solUrl = JsonSerializer.Deserialize<List<string>>(problem.Solutions);
+        comments = JsonSerializer.Deserialize<List<string>>(problem.Comments);
+
+        descDisp.Clear(); solDisp.Clear();
+        if (descUrl != null)
+        {
+            for (int i = 0; i < descUrl.Count(); ++i)
+            {
+                string s = descUrl[i];
+                descDisp.Add("[" + (i + 1).ToString() + "]" + Path.GetExtension(s));
+                descUrl[i] = "/Upload/" + s;
+            }
+        }
+        if (solUrl != null)
+        {
+            for (int i = 0; i < solUrl.Count(); ++i)
+            {
+                string s = solUrl[i];
+                solDisp.Add("[" + (i + 1).ToString() + "]" + Path.GetExtension(s));
+                solUrl[i] = "/Upload/" + s;
+            }
+        }
+    }
+
+    void GoEdit()
+    {
+        NavMgr.NavigateTo("/problem/edit/" + problem.Id.ToString());
+    }
+}

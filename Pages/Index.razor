@@ -1,0 +1,22 @@
+﻿@page "/"
+@using DynTransit.Data
+
+<PageTitle>Index</PageTitle>
+
+<h1>@problemCount Problems</h1>
+<h1>@tagCount Tags</h1>
+<a href="https://yhx-12243.github.io/OI-transit/tools.html">Tools (By yhx-12243)</a><br/>
+
+@code {
+    public int problemCount;
+    public int tagCount;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        using var db = new TransContext();
+        db.Database.EnsureCreated();
+        problemCount = db.Problems.Count();
+        tagCount = db.Tags.Count();
+    }
+}

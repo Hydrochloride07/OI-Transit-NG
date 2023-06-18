@@ -1,0 +1,85 @@
+﻿@page "/tag/{Name}"
+@using DynTransit.Data;
+@using System.Text.Json;
+@inject NavigationManager NavMgr
+
+<textarea style="width:90%;font-family:Consolas" @bind="t.Comments" />
+<button class="btn btn-primary" @onclick="e => Update()">Update!</button>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>Name</th>
+            <th>URL</th>
+            <th>Edit</th>
+            <th>Date</th>
+            <th>Tags</th>
+        </tr>
+    </thead>
+    <tbody>
+        @for (int i = 0; i < problems.Count; ++i)
+        {
+            <tr>
+                <td><a href="@locUrl[i]">@problems[i].Id</a></td>
+                <td>@problems[i].Name</td>
+                <td><a href="@problems[i].Url">Go</a></td>
+                <td><a href="@editUrl[i]">Edit</a></td>
+                <td>@problems[i].Date</td>
+                <td>
+                    @for (int j = 0; j < tags[i].Count; ++j)
+                    {
+                        string s = "/tag/" + tags[i][j];
+                        <a href="@s">@(tags[i][j])@(j + 1 == tags[i].Count ? "" : ";")</a>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [Parameter] public string Name { get; set; } = "";
+    Tag t;
+
+    public List<string> locUrl = new(), editUrl = new();
+    public List<List<string>> tags = new();
+    List<Problem> problems = new();
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+
+        using var db = new TransContext();
+        var list = db.Tags.Where(u => u.Name == Name).ToList();
+
+        if (list.Count == 0)
+        {
+            NavMgr.NavigateTo("/404");
+            return;
+        }
+        t = list[0];
+
+        var probs = db.Problems.OrderByDescending(u => u.Id).ToList();
+        problems.Clear(); locUrl.Clear(); tags.Clear(); editUrl.Clear();
+        foreach (var p in probs)
+        {
+            var spl = p.Tags.Split(';').ToList();
+            if (!spl.Contains(Name))
+                continue;
+            problems.Add(p);
+
+            locUrl.Add("/problem/view/" + p.Id.ToString());
+            editUrl.Add("/problem/edit/" + p.Id.ToString());
+            tags.Add(spl);
+        }
+    }
+
+    void Update()
+    {
+        using var db = new TransContext();
+        db.Tags.Remove(db.Tags.Where(u => u.Name == Name).ToList()[0]);
+        db.Tags.Add(t);
+        db.SaveChanges();
+    }
+}

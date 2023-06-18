@@ -1,0 +1,85 @@
+﻿@page "/problem/edit/{Id:int}"
+@using DynTransit.Data;
+@using System.Text.Json;
+@inject NavigationManager NavMgr
+@inject IJSRuntime JS
+
+<h3><input @bind="problem.Name"/></h3>
+<br />
+
+<table class="table">
+    <tbody>
+        <tr>
+            <td>Date</td>
+            <td><input @bind="problem.Date" /></td>
+        </tr>
+        <tr>
+            <td>Related Problem</td>
+            <td><input @bind="problem.RelatedProblem" /></td>
+        </tr>
+        <tr>
+            <td>Tags</td>
+            <td><input @bind="problem.Tags" /></td>
+        </tr>
+    </tbody>
+</table>
+<br/>
+
+
+<h4>Description</h4>
+<Uploader @bind-FileList="descUrl" />
+<br/>
+
+<h4>Solution</h4>
+<Uploader @bind-FileList="solUrl" />
+<br/>
+
+<h4>Comments</h4>
+<EditableList @bind-Values="comments" />
+<br/>
+
+<button class="btn btn-primary" @onclick="async e => await Save()">Save</button>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    Problem problem;
+    List<string>? descUrl = new(), solUrl = new(), comments = new();
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+
+        using var db = new TransContext();
+        var list = db.Problems.Where(u => u.Id == Id).ToList();
+        if (list.Count == 0)
+        {
+            NavMgr.NavigateTo("/404");
+            return;
+        }
+        problem = list[0];
+
+        descUrl = JsonSerializer.Deserialize<List<string>>(problem.Descriptions);
+        solUrl = JsonSerializer.Deserialize<List<string>>(problem.Solutions);
+        comments = JsonSerializer.Deserialize<List<string>>(problem.Comments);
+    }
+
+    async Task Save()
+    {
+        var db = new TransContext();
+
+        problem.Descriptions = JsonSerializer.Serialize(descUrl);
+        problem.Solutions = JsonSerializer.Serialize(solUrl);
+        problem.Comments = JsonSerializer.Serialize(comments);
+
+        db.Remove(db.Problems.Where(u => u.Id == Id).ToList()[0]);
+        db.Add(problem);
+        db.SaveChanges();
+        db.Dispose();
+
+        (new TagHelper()).Update(problem.Tags.Split(';').ToList(), problem.Date);
+
+        var s = "Success";
+        await JS.InvokeAsync<object>("Alert", s);
+    }
+}

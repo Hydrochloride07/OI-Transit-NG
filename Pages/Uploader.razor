@@ -1,0 +1,99 @@
+﻿@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div @ref="UploadElement" style="padding: 20px; width: 600px; background-color:aliceblue; border: 2px dashed #0087F7; border-radius: 5px; ">
+    <EditableList @bind-Values:get="FileList" @bind-Values:set="li => {
+        FileList = li;
+        refresh();
+        }" ShowAdd=false ReadOnly=true />
+    <p>拖放上传文件</p>
+    <InputFile OnChange="OnChange" class="form-control" multiple @ref="inputFile" />
+</div>
+
+@code {
+    [Inject] protected Microsoft.AspNetCore.Hosting.IWebHostEnvironment? HostEnvironment { get; set; } //获取IWebHostEnvironment
+
+    protected ElementReference UploadElement { get; set; }
+    protected InputFile? inputFile { get; set; }
+
+    private DotNetObjectReference<Uploader>? wrapper;
+
+    private IJSObjectReference? module;
+    private IJSObjectReference? dropInstance;
+
+    protected string UploadPath = "";
+    protected string? uploadstatus;
+    long maxFileSize = 1024 * 1024 * 15;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender) return;
+        UploadPath = Path.Combine(HostEnvironment!.WebRootPath, "Upload"); //初始化上传路径
+        if (!Directory.Exists(UploadPath)) Directory.CreateDirectory(UploadPath); //不存在则新建目录
+    }
+
+    [Parameter] public List<string> FileList { get; set; }
+    [Parameter] public EventCallback<List<string>> FileListChanged { get; set; }
+    async void refresh() { await FileListChanged.InvokeAsync(FileList); }
+
+    protected async Task OnChange(InputFileChangeEventArgs e)
+    {
+        var selectedFiles = e.GetMultipleFiles(100);
+        foreach (var item in selectedFiles)
+        {
+            string name = Path.GetFileNameWithoutExtension(item.Name) + "_" + System.Guid.NewGuid() + Path.GetExtension(item.Name);
+            await OnSubmit(item, name);
+
+            FileList.Add(name);
+            refresh();
+        }
+    }
+
+    protected async Task OnSubmit(IBrowserFile efile, string name)
+    {
+        if (efile == null) return;
+        var tempFilename = Path.Combine(UploadPath, name);
+        await using FileStream fs = new(tempFilename, FileMode.Create);
+        using var stream = efile.OpenReadStream(maxFileSize);
+        await stream.CopyToAsync(fs);
+        StateHasChanged();
+    }
+
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        module = await JS.InvokeAsync<IJSObjectReference>("import", "./lib/drag/app.js");
+        wrapper = DotNetObjectReference.Create(this);
+        await module.InvokeVoidAsync("init", wrapper, UploadElement, inputFile!.Element);
+    }
+
+    [JSInvokable]
+    public void DropAlert(string msg)
+    {
+        uploadstatus += Environment.NewLine + $"[!Alert!]: " + msg;
+        StateHasChanged();
+    }
+
+
+    async ValueTask IAsyncDisposable.DisposeAsync()
+    {
+        if (dropInstance != null)
+        {
+            await dropInstance.InvokeVoidAsync("dispose");
+            await dropInstance.DisposeAsync();
+        }
+
+        if (wrapper != null)
+        {
+            wrapper.Dispose();
+        }
+
+        if (module != null)
+        {
+            await module.DisposeAsync();
+        }
+    }
+
+}

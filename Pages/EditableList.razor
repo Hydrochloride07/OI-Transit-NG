@@ -1,0 +1,63 @@
+﻿<table class="table">
+    <tbody>
+        @for (int i = 0; i < Values.Count; ++i)
+        {
+            int t = i;
+            <tr>
+                <td width="100px">@(t+1)</td>
+                @if (ReadOnly) {
+                    <td>@Values[i]</td>
+                } else {
+                    <td style="height:auto;width:90%">
+                        <textarea style="width:90%;font-family:Consolas" @bind:get="Values[i]" @bind:set="s => {
+                        Values[t] = s;
+                        refresh();
+                        }"/></td>
+                }
+                <button class="btn btn-secondary" @onclick="e => RemoveItem(t)">-</button>
+            </tr>
+        }
+    </tbody>
+</table>
+@if (ShowAdd)
+{
+    <textarea @bind="newText" style="height:auto;width:90%;font-family:Consolas;font" />
+    <button class="btn btn-secondary" @onclick="AddItem">+</button>
+    <br/>
+}
+
+@code {
+    [Parameter] public bool ShowAdd { get; set; } = true;
+    [Parameter] public bool ReadOnly { get; set; } = false;
+
+    [Parameter]
+    public List<string> Values { get; set; }
+    [Parameter]
+    public EventCallback<List<string>> ValuesChanged { get; set; }
+
+    public string newText { get; set; }
+
+    async void refresh()
+    {
+        await ValuesChanged.InvokeAsync(Values);
+    }
+
+    void AddItem(EventArgs e)
+    {
+        if (newText == "")
+            return;
+        Values.Add(newText);
+        newText = "";
+        refresh();
+    }
+    void RemoveItem(int remove)
+    {
+        if (remove >= Values.Count)
+        {
+            Console.WriteLine("Fuck");
+            return;
+        }
+        Values.RemoveAt(remove);
+        refresh();
+    }
+}

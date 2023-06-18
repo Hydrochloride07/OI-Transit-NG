@@ -1,0 +1,70 @@
+﻿@page "/problem"
+@inject NavigationManager NavMgr
+
+<h3>ProblemList <button class="btn btn-primary" @onclick="e => AddProblem()">Add</button></h3>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>Name</th>
+            <th>URL</th>
+            <th>Edit</th>
+            <th>Date</th>
+            <th>Tags</th>
+        </tr>
+    </thead>
+    <tbody>
+        @for(int i = 0; i < problems.Count; ++i)
+        {
+            <tr>
+                <td><a href="@locUrl[i]">@problems[i].Id</a></td>
+                <td>@problems[i].Name</td>
+                <td><a href="@problems[i].Url">Go</a></td>
+                <td><a href="@editUrl[i]">Edit</a></td>
+                <td>@problems[i].Date</td>
+                <td>
+                    @for(int j = 0; j < tags[i].Count; ++j)
+                    {
+                        string s = "/tag/" + tags[i][j];
+                        <a href="@s">@(tags[i][j])@(j + 1 == tags[i].Count ? "" : ";")</a>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    public List<string> locUrl = new(), editUrl = new();
+    public List<List<string>> tags = new();
+    public List<Problem> problems;
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        using var db = new TransContext();
+        problems = db.Problems.OrderByDescending(u => u.Id).ToList();
+
+        locUrl.Clear(); tags.Clear(); editUrl.Clear();
+        foreach (var p in problems)
+        {
+            locUrl.Add("/problem/view/" + p.Id.ToString());
+            editUrl.Add("/problem/edit/" + p.Id.ToString());
+            List<string> tag = p.Tags.Split(';').ToList();
+            tags.Add(tag);
+        }
+    }
+
+    void AddProblem()
+    {
+        using var db = new TransContext();
+        int n = db.Problems.Count();
+        Problem p = new Problem();
+        p.Id = n + 1;
+        p.Date = DateTime.Now.ToString("yy.MM.dd");
+        db.Problems.Add(p);
+        db.SaveChanges();
+
+        NavMgr.NavigateTo("/problem/edit/" + p.Id.ToString());
+    }
+}

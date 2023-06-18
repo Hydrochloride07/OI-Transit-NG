@@ -1,0 +1,36 @@
+﻿@page "/tag/"
+<table class="table">
+    <thead>
+        <tr>
+            <th>Tag</th>
+            <th>LastVisit</th>
+            <th style="max-width:800px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Comments</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach(var t in tags)
+        {
+            <tr>
+                <td>@{
+                    string s = "/tag/" + t.Name;
+                    <a href="@s">@t.Name</a>
+                }</td>
+                <td>@t.LastVisit</td>
+                <td style="max-width:800px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                    @t.Comments
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    List<Tag> tags;
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        using var db = new TransContext();
+        tags = db.Tags.OrderByDescending(u => u.LastVisit).ToList();
+    }
+}

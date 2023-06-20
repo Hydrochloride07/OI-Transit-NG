@@ -13,3 +13,7 @@ Execute `DynTransit.exe`.
 ### For all platforms
 
 Run `dotnet DynTransit.dll`.
+
+## Usage
+
+Web service is bind to `0.0.0.0:8086`.
